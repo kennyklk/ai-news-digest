@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI News Digest</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #ebebeb;
+    --text: #1a1a1a;
+    --text2: #555;
+    --text3: #999;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --bg2: #242424;
+      --bg3: #2e2e2e;
+      --text: #f0f0f0;
+      --text2: #aaa;
+      --text3: #666;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg2);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  .page { max-width: 780px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+
+  /* Header */
+  .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .header h1 { font-size: 22px; font-weight: 500; }
+  .header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  /* Backend URL row */
+  .url-row { display: flex; align-items: center; gap: 8px; margin-bottom: 1.25rem; }
+  .url-row label { font-size: 12px; color: var(--text3); white-space: nowrap; }
+  .url-row input {
+    flex: 1; font-size: 12px; padding: 6px 10px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
+    background: var(--bg); color: var(--text); outline: none;
+  }
+  .url-row input:focus { border-color: #534AB7; }
+
+  /* Refresh button */
+  .btn-refresh {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 18px; font-size: 14px; cursor: pointer;
+    background: transparent; color: var(--text);
+    border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
+    white-space: nowrap; transition: background 0.15s;
+  }
+  .btn-refresh:hover { background: var(--bg3); }
+  .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--border2);
+    border-top-color: var(--text);
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Tabs */
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1.25rem; }
+  .tab {
+    padding: 6px 14px; font-size: 13px; cursor: pointer; border-radius: 999px;
+    border: 0.5px solid var(--border); background: transparent; color: var(--text2);
+    transition: all 0.15s;
+  }
+  .tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .tab:hover:not(.active) { background: var(--bg3); }
+
+  /* Error */
+  .error {
+    padding: 12px 16px; margin-bottom: 1rem;
+    background: #fff0f0; border: 0.5px solid #f5c1c1;
+    color: #a32d2d; border-radius: var(--radius-sm); font-size: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    .error { background: #2a1414; border-color: #5a2020; color: #f09595; }
+  }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 4rem 2rem; color: var(--text2); }
+  .empty .icon { font-size: 32px; margin-bottom: 12px; }
+
+  /* Cards */
+  .cards { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    background: var(--bg); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .card:hover { border-color: var(--border2); }
+  .card.highlighted { border-left: 3px solid; }
+
+  .card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .badge {
+    font-size: 11px; font-weight: 500; padding: 2px 10px;
+    border-radius: 999px; letter-spacing: 0.2px;
+  }
+  .badge-featured { background: #E1F5EE; color: #0F6E56; }
+  .source { font-size: 12px; color: var(--text3); margin-left: auto; }
+
+  .card-title { font-size: 15px; font-weight: 500; line-height: 1.4; margin-bottom: 4px; }
+  .card-hint { font-size: 12px; color: var(--text3); }
+  .card-summary { font-size: 13px; color: var(--text2); line-height: 1.6; margin: 8px 0 10px; }
+  .card-link { font-size: 12px; color: #185FA5; text-decoration: none; }
+  .card-link:hover { text-decoration: underline; }
+
+  .footer { font-size: 12px; color: var(--text3); text-align: center; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div>
+      <h1>AI news digest</h1>
+      <p id="subtitle">Press refresh to fetch today's AI news</p>
+    </div>
+    <button class="btn-refresh" id="btn-refresh" onclick="fetchNews()">Refresh ↗</button>
+  </div>
+
+  <div class="url-row">
+    <label>Backend URL</label>
+    <input type="text" id="backend-url" value="http://localhost:8000" placeholder="https://your-backend.railway.app" />
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+  <div id="error" class="error" style="display:none"></div>
+  <div id="content"></div>
+  <div class="footer" id="footer"></div>
+
+</div>
+
+<script>
+const CATEGORIES = [
+  { id: "all",                  label: "All" },
+  { id: "ai_tools_models",      label: "AI Tools & Models" },
+  { id: "workflow_automation",  label: "Workflow & Data" },
+  { id: "ai_adoption_industry", label: "Industry Adoption" },
+  { id: "ai_adoption_travel",   label: "Travel & OTA" },
+  { id: "ai_use_cases",         label: "Use Cases" },
+  { id: "ai_marketing",         label: "Marketing & Invest." },
+];
+
+const CAT_META = {
+  ai_tools_models:      { color: "#534AB7", bg: "#EEEDFE", label: "AI Tools & Models" },
+  workflow_automation:  { color: "#0F6E56", bg: "#E1F5EE", label: "Workflow & Data" },
+  ai_adoption_industry: { color: "#185FA5", bg: "#E6F1FB", label: "Industry Adoption" },
+  ai_adoption_travel:   { color: "#993C1D", bg: "#FAECE7", label: "Travel & OTA" },
+  ai_use_cases:         { color: "#3B6D11", bg: "#EAF3DE", label: "Use Cases" },
+  ai_marketing:         { color: "#854F0B", bg: "#FAEEDA", label: "Marketing & Invest." },
+};
+
+let articles = [];
+let activeTab = "all";
+let expandedId = null;
+
+function getUrl() {
+  return document.getElementById("backend-url").value.replace(/\/$/, "");
+}
+
+async function fetchNews() {
+  const btn = document.getElementById("btn-refresh");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Searching...';
+  showError(null);
+  renderContent();
+
+  try {
+    const res = await fetch(`${getUrl()}/fetch-news`, { method: "POST" });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    articles = data.articles || [];
+    const now = new Date().toLocaleTimeString();
+    document.getElementById("subtitle").textContent = `Last updated ${now} · ${articles.length} articles`;
+  } catch (e) {
+    showError(e.message || "Failed to connect to backend. Is the server running?");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "Refresh ↗";
+    renderTabs();
+    renderContent();
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById("error");
+  if (msg) { el.textContent = msg; el.style.display = "block"; }
+  else el.style.display = "none";
+}
+
+function renderTabs() {
+  const counts = {};
+  CATEGORIES.forEach(c => {
+    counts[c.id] = c.id === "all" ? articles.length : articles.filter(a => a.category === c.id).length;
+  });
+  document.getElementById("tabs").innerHTML = CATEGORIES.map(c => `
+    <button class="tab ${activeTab === c.id ? "active" : ""}" onclick="setTab('${c.id}')">
+      ${c.label}${counts[c.id] > 0 ? ` <span style="opacity:0.6">(${counts[c.id]})</span>` : ""}
+    </button>
+  `).join("");
+}
+
+function setTab(id) {
+  activeTab = id;
+  expandedId = null;
+  renderTabs();
+  renderContent();
+}
+
+function toggleCard(id) {
+  expandedId = expandedId === id ? null : id;
+  renderContent();
+}
+
+function renderContent() {
+  const filtered = activeTab === "all" ? articles : articles.filter(a => a.category === activeTab);
+  const el = document.getElementById("content");
+  const footer = document.getElementById("footer");
+
+  if (articles.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="icon">◌</div><p>No articles yet — click <strong>Refresh</strong> to fetch today's AI news.</p></div>`;
+    footer.textContent = "";
+    return;
+  }
+
+  if (filtered.length === 0) {
+    el.innerHTML = `<div class="empty"><p>No articles in this category today.</p></div>`;
+    footer.textContent = "";
+    return;
+  }
+
+  el.innerHTML = `<div class="cards">${filtered.map((a, i) => {
+    const meta = CAT_META[a.category] || CAT_META["ai_use_cases"];
+    const id = `card-${i}`;
+    const expanded = expandedId === id;
+    const hlStyle = a.highlight ? `border-left-color:${meta.color}` : "";
+    return `
+      <div class="card ${a.highlight ? "highlighted" : ""}" style="${hlStyle}" onclick="toggleCard('${id}')">
+        <div class="card-meta">
+          <span class="badge" style="background:${meta.bg};color:${meta.color}">${meta.label}</span>
+          ${a.highlight ? `<span class="badge badge-featured">featured</span>` : ""}
+          <span class="source">${a.source || ""} · ${a.date || ""}</span>
+        </div>
+        <div class="card-title">${a.title}</div>
+        ${expanded ? `
+          <div class="card-summary">${a.summary}</div>
+          ${a.url ? `<a class="card-link" href="${a.url}" target="_blank" onclick="event.stopPropagation()">Read full article →</a>` : ""}
+        ` : `<div class="card-hint">Click to expand</div>`}
+      </div>
+    `;
+  }).join("")}</div>`;
+
+  footer.textContent = `${filtered.length} articles · click any card to read summary`;
+}
+
+// Init
+renderTabs();
+renderContent();
+</script>
+</body>
+</html>
