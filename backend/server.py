@@ -1,5 +1,6 @@
 import os, json, re
 import anthropic
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
@@ -84,3 +85,8 @@ def fetch_news():
 
     except Exception as e:
         return {"error": str(e)}
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("server:app", host="0.0.0.0", port=port)
